@@ -1,0 +1,831 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SuperAdmin {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Company {
+  companyId                String                      @id @default(cuid())
+  companyEmail             String                      @unique
+  companyCode              String?
+  companyName              String
+  companyPhoneNumber       String?                     @unique
+  companyWebsite           String?
+  country                  String?
+  state                    String?
+  city                     String?
+  postalCodeNo             String?
+  document                 String?
+  companyPhoto             String?
+  password                 String
+  isVerified               Boolean                     @default(false)
+  noOfDepartments          Int?                        @default(0)
+  noOfEmployees            Int?                        @default(0)
+  noOfTeams                Int?                        @default(0)
+  resetToken               String?
+  resetTokenExperiation    String?
+  departments              Department[]
+  teams                    Team[]
+  employee                 Employee[]
+  screenshot               Screenshot[]
+  timeLapseVideo           TimeLapseVideo[]
+  riskUser                 RiskUser[]
+  attendance               Attendance[]
+  leave                    Leave[]
+  holiday                  Holiday[]
+  app                      App[]
+  actualTimeOfCompany      ActualTimeOfCompany[]
+  appReview                AppReview[]
+  notificationsSent        Notification[]              @relation("SentNotificationsCompany")
+  notificationsReceived    Notification[]              @relation("ReceivedNotificationsCompany")
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+  Task                     Task[]
+  employeeRole             Roles[]
+  rolePermission           RolePermission[]
+  productivity             Productivity[]
+  sentMessages             CompanyAndEmployeeMessage[] @relation("SentCompanyMessages")
+  receivedMessages         CompanyAndEmployeeMessage[] @relation("ReceivedCompanyMessages")
+  roomParticipants         RoomParticipant[]           @relation("CompanyRoomParticipants")
+  userSubscription         UserSubscription[]
+  payments                 Payments[]
+  invoice                  Invoice[]
+  keyword                  Keyword[]
+  idleTimeOfEmployee       IdleTimeOfEmployee[]
+  CompanyLoginHistory      CompanyLoginHistory[]
+  companyProductivityratio CompanyProductivityratio[]
+  freeTrail                FreeTrail?
+  totalScreenShots         Int                         @default(0)
+  dailyScreenshotCount     Int                         @default(0)
+  lastScreenshotReset      DateTime?
+  loginTime                String?
+
+  @@map("companies")
+}
+
+model companyRegistrationOTP {
+  companyOtpId String   @id @default(cuid())
+  companyEmail String
+  otp          String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("companyotps")
+}
+
+model forgetPwOTPStore {
+  forgetPwId   String   @id @default(cuid())
+  companyEmail String
+  otp          String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("forgetpwotps")
+}
+
+model Department {
+  departmentId   String           @id @default(cuid())
+  departmentCode String?
+  departmentName String
+  noOfTeams      Int?             @default(0)
+  departmentHead String?
+  company        Company          @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  companyId      String
+  team           Team[]
+  employee       Employee[]
+  screenshot     Screenshot[]
+  timeLapseVideo TimeLapseVideo[]
+  riskUser       RiskUser[]
+  attendance     Attendance[]
+  leave          Leave[]
+  holiday        Holiday[]
+  app            App[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@map("departments")
+}
+
+model Team {
+  teamId              String                @id @default(cuid())
+  teamCode            String?
+  teamName            String
+  departmentId        String
+  department          Department            @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  companyId           String
+  company             Company               @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  noOfEmployee        Int?                  @default(0)
+  teamHead            String?
+  employee            Employee[]
+  screenshot          Screenshot[]
+  timeLapseVideo      TimeLapseVideo[]
+  attendance          Attendance[]
+  leave               Leave[]
+  holiday             Holiday[]
+  app                 App[]
+  actualTimeOfCompany ActualTimeOfCompany[]
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@map("teams")
+}
+
+enum CurrentEmployeeStatus {
+  WORKING
+  ONBREAK
+  INACTIVE
+  IDLE
+}
+
+model Employee {
+  employeeId              String                      @id @default(cuid())
+  employeeCode            String
+  employeeName            String
+  email                   String                      @unique
+  phoneNumber             String                      @unique
+  password                String
+  employeeAddress         String
+  departmentId            String?
+  employeeDepartmentCode  String?
+  department              Department?                 @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  position                UserRole[]
+  profilePicture          String?
+  isActive                Boolean
+  teamId                  String?
+  employeeTeamCode        String?
+  team                    Team?                       @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+  companyId               String
+  isProductiveEmployee    Boolean                     @default(true)
+  company                 Company                     @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  currentEmployeeStatus   CurrentEmployeeStatus       @default(INACTIVE)
+  screenshot              Screenshot[]
+  timeLapseVideo          TimeLapseVideo[]
+  riskUser                RiskUser[]
+  attendance              Attendance[]
+  leave                   Leave[]
+  app                     App[]
+  notificationsSent       Notification[]              @relation("SentNotificationsEmployee")
+  notificationsReceived   Notification[]              @relation("ReceivedNotificationsEmployee")
+  conversationsIds        String[]
+  Task                    Task[]
+  productivity            Productivity[]
+  sentMessages            Message[]                   @relation("SentMessages")
+  receivedMessages        Message[]                   @relation("ReceivedMessages")
+  rooms                   Room[]                      @relation("RoomParticipants")
+  employeeSentMessage     CompanyAndEmployeeMessage[] @relation("SentEmployeeMessages")
+  employeeReceivedMessage CompanyAndEmployeeMessage[] @relation("ReceivedEmployeeMessages")
+  roomParticipants        RoomParticipant[]           @relation("EmployeeRoomParticipants")
+  idleTimeOfEmployee      IdleTimeOfEmployee[]
+  CompanyLoginHistory     CompanyLoginHistory[]
+  keywordFoundEmployee    KeywordFoundEmployee[]
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+
+  @@map("employees")
+}
+
+model Screenshot {
+  screenshotId  String                @id @default(cuid())
+  time          String
+  imageLink     String
+  employeeId    String
+  employee      Employee              @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  departmentId  String?
+  department    Department?           @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  teamId        String?
+  team          Team?                 @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+  workingStatus CurrentEmployeeStatus @default(WORKING)
+  companyId     String
+  company       Company               @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@map("screenshots")
+}
+
+model TimeLapseVideo {
+  timeLapseVideoId String      @id @default(cuid())
+  videoLink        String
+  time             DateTime
+  employeeId       String
+  employee         Employee    @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  departmentId     String?
+  department       Department? @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  teamId           String?
+  team             Team?       @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+  companyId        String
+  company          Company     @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@map("timelapsevideos")
+}
+
+model Keyword {
+  KeywordId String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [companyId])
+  keyword   String
+}
+
+model KeywordFoundEmployee {
+  employeeKeywordId String   @id @default(cuid())
+  keywords          Json
+  count             Int
+  employeeId        String   @unique
+  employee          Employee @relation(fields: [employeeId], references: [employeeId])
+}
+
+model RiskUser {
+  riskUserId   String      @id @default(cuid())
+  employeeId   String      @unique
+  employeeName String
+  employee     Employee    @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  companyId    String
+  company      Company     @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  isSafe       Boolean
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@map("riskusers")
+}
+
+model DeletedEmployee {
+  id           String   @id @default(cuid())
+  employeeId   String
+  employeeName String
+  companyId    String
+  reason       String
+  addedAt      DateTime @default(now())
+
+  @@map("deleted_employees")
+}
+
+model ActualTimeOfCompany {
+  actualTimeId     String   @id @default(cuid())
+  actualLoginTime  String
+  actualLogoutTime String
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  teamId           String?
+  team             Team?    @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+  timeZone         String   @default("UTC")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("actualtimeofcompany")
+}
+
+// model Attendance {
+//   actualDate         String
+//   employeeLoginTime  DateTime
+//   employeeLogoutTime DateTime?
+//   lateClockIn        String?
+//   notificationSent   Boolean             @default(false)
+//   earlyClockOut      String?
+//   breakIn            DateTime?
+//   breakOut           DateTime?
+//   breakInMinutes     String?
+//   overTime           String?
+//   employeeId         String
+//   departmentId       String?
+//   teamId             String?
+//   companyId          String
+//   metadata           AttendanceMetadata? // New relation for timezone info
+
+//   employee   Employee    @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+//   department Department? @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+//   company    Company     @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+//   team       Team?       @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+//   createdAt  DateTime    @default(now())
+//   updatedAt  DateTime    @updatedAt
+
+//   @@id([employeeId, actualDate, createdAt])
+//   @@map("attendances")
+// }
+
+// model BreakInBreakOut{
+//   breakIn DateTime?
+//   breakOut DateTime?
+
+// }
+
+model Attendance {
+  id                 String              @id @default(cuid())
+  actualDate         String
+  employeeLoginTime  DateTime
+  employeeLogoutTime DateTime?
+  lateClockIn        String?
+  notificationSent   Boolean             @default(false)
+  earlyClockOut      String?
+  breakInMinutes     String?
+  overTime           String?
+  employeeId         String
+  departmentId       String?
+  teamId             String?
+  companyId          String
+  metadata           AttendanceMetadata? // New relation for timezone info       
+  employee           Employee            @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  department         Department?         @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  company            Company             @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  team               Team?               @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+  breakSessions      BreakSession[] // Relation to multiple break sessions
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  // @@id([employeeId, actualDate, updatedAt]) // Composite key
+  @@map("attendances")
+}
+
+model BreakSession {
+  id           String     @id @default(cuid()) // Unique identifier for each break session
+  breakIn      DateTime
+  breakOut     DateTime?
+  attendanceId String
+  attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  employeeId   String
+  actualDate   String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@map("break_sessions")
+}
+
+model AttendanceMetadata {
+  id               String     @id @default(cuid())
+  employeeId       String
+  actualDate       String
+  attendanceId     String     @unique
+  attendance       Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  originalTimezone String
+  loginTime        String
+  logoutTime       String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@map("attendance_metadata")
+}
+
+// New model to store timezone-specific information
+
+enum leaveStatus {
+  PENDING
+  APPROVE
+  DECLINED
+}
+
+enum leaveType {
+  CASUALLEAVE
+  SICKLEAVE
+}
+
+model Leave {
+  leaveId               String      @id @default(cuid())
+  employeeId            String
+  departmentId          String?
+  teamId                String?
+  companyId             String
+  leaveType             leaveType   @default(CASUALLEAVE)
+  leaveStatus           leaveStatus @default(PENDING)
+  reason                String
+  noOfDays              String
+  leaveSession          String
+  leaveFrom             DateTime?
+  leaveTo               DateTime?
+  actionReason          String?
+  reconsiderationReason String?
+  employee              Employee    @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  department            Department? @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  company               Company     @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  team                  Team?       @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+  halfDayType           String?
+  fromTime              String?
+  toTime                String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  @@map("leaves")
+}
+
+enum HolidayType {
+  PUBLIC
+  PRIVATE
+  OFFICIAL
+}
+
+model Holiday {
+  holidayId      String      @id @default(cuid())
+  departmentId   String?
+  teamId         String?
+  companyId      String?
+  department     Department? @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  company        Company?    @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  team           Team?       @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+  fromDate       DateTime
+  fromTime       String?
+  toTime         String?
+  toDate         DateTime
+  holidayTitle   String
+  holidayType    HolidayType @default(PUBLIC)
+  holidaySession String
+  halfSelection  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("holidays")
+}
+
+enum AppType {
+  PRODUCTIVE
+  UNPRODUCTIVE
+  NEUTRAL
+}
+
+model App {
+  appId           String      @id @default(cuid())
+  appName         String
+  appLogo         String?
+  day             String?
+  appUsedDuration String?
+  appType         AppType
+  departmentId    String?
+  teamId          String?
+  companyId       String
+  employeeId      String?
+  department      Department? @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
+  company         Company     @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  team            Team?       @relation(fields: [teamId], references: [teamId], onDelete: Cascade)
+  employee        Employee?   @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("apps")
+}
+
+model AppReview {
+  appName   String
+  appLogo   String?
+  appReview AppType  @default(NEUTRAL)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([appName, companyId])
+  @@map("appreviews")
+}
+
+model Notification {
+  notificationId     String    @id @default(cuid())
+  message            String
+  senderEmployeeId   String?
+  senderCompanyId    String?
+  receiverCompanyId  String?
+  senderName         String?
+  receiverEmployeeId String?
+  taskId             String?
+  links              String?
+  isRead             Boolean   @default(false)
+  task               Task?     @relation("taskForEmployee", fields: [taskId], references: [task_id], onDelete: Cascade)
+  senderEmployee     Employee? @relation("SentNotificationsEmployee", fields: [senderEmployeeId], references: [employeeId], onDelete: Cascade)
+  receiverEmployee   Employee? @relation("ReceivedNotificationsEmployee", fields: [receiverEmployeeId], references: [employeeId], onDelete: Cascade)
+  senderCompany      Company?  @relation("SentNotificationsCompany", fields: [senderCompanyId], references: [companyId], onDelete: Cascade)
+  receiverCompany    Company?  @relation("ReceivedNotificationsCompany", fields: [receiverCompanyId], references: [companyId], onDelete: Cascade)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("notifications")
+}
+
+/////
+
+model MessageMedia {
+  id                          String                     @id @default(cuid())
+  name                        String
+  filePath                    String
+  mimeType                    String
+  companyAndEmployeeMessageId String?
+  companyAndEmployeeMessage   CompanyAndEmployeeMessage? @relation("CompanyAndEmployeeMessageToMedia", fields: [companyAndEmployeeMessageId], references: [id], onDelete: Cascade)
+
+  messageId String?
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model Room {
+  id           String     @id @default(cuid())
+  participants Employee[] @relation("RoomParticipants")
+  messages     Message[]  @relation("RoomMessages")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  read      Boolean  @default(false)
+  senderId  String
+
+  sender     Employee       @relation("SentMessages", fields: [senderId], references: [employeeId], onDelete: Cascade)
+  receiverId String
+  receiver   Employee       @relation("ReceivedMessages", fields: [receiverId], references: [employeeId], onDelete: Cascade)
+  roomId     String
+  room       Room           @relation("RoomMessages", fields: [roomId], references: [id], onDelete: Cascade)
+  media      MessageMedia[]
+}
+
+model EmployeeTemp {
+  employeeId      String  @id @default(cuid())
+  employeeName    String
+  email           String  @unique
+  phoneNumber     String  @unique
+  password        String
+  employeeAddress String
+  position        String
+  isActive        Boolean
+
+  companyId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CompanyAndEmployeeMessage {
+  id                 String                  @id @default(cuid())
+  content            String
+  read               Boolean                 @default(false)
+  employeeSenderId   String?
+  employeeSender     Employee?               @relation("SentEmployeeMessages", fields: [employeeSenderId], references: [employeeId], onDelete: Cascade)
+  employeeReceiverId String?
+  employeeReceiver   Employee?               @relation("ReceivedEmployeeMessages", fields: [employeeReceiverId], references: [employeeId], onDelete: Cascade)
+  companySenderId    String?
+  companySender      Company?                @relation("SentCompanyMessages", fields: [companySenderId], references: [companyId], onDelete: Cascade)
+  companyReceiverId  String?
+  companyReceiver    Company?                @relation("ReceivedCompanyMessages", fields: [companyReceiverId], references: [companyId], onDelete: Cascade)
+  roomId             String?
+  room               CompanyAndEmployeeRoom? @relation("RoomMessages", fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  media MessageMedia[] @relation("CompanyAndEmployeeMessageToMedia") // Fix: Use the same relation name
+}
+
+model CompanyAndEmployeeRoom {
+  id           String                      @id @default(cuid())
+  name         String?
+  participants RoomParticipant[]
+  messages     CompanyAndEmployeeMessage[] @relation("RoomMessages")
+
+  @@map("CompanyAndEmployeeRoom")
+}
+
+model RoomParticipant {
+  id         String                 @id @default(cuid())
+  roomId     String
+  room       CompanyAndEmployeeRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  employeeId String?
+  employee   Employee?              @relation("EmployeeRoomParticipants", fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  companyId  String?
+  company    Company?               @relation("CompanyRoomParticipants", fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  @@unique([roomId, employeeId, companyId])
+}
+
+// subscriptions table start:
+model SubscriptionPlans {
+  id               String             @id @default(cuid())
+  subscriptionName String
+  price            Int
+  billingCycle     String
+  feature          Json
+  userSubscription UserSubscription[]
+}
+
+model UserSubscription {
+  id                  String                 @id @default(cuid())
+  companyId           String
+  company             Company                @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  subscriptionPlansId String
+  subscription        SubscriptionPlans      @relation(fields: [subscriptionPlansId], references: [id], onDelete: Cascade)
+  startDate           DateTime
+  endDate             DateTime
+  status              SubscriptionStatusType
+  autoRenew           Boolean
+  payments            Payments[] // This reflects a one-to-many relationship with Payments
+  invoice             Invoice[]
+}
+
+enum SubscriptionStatusType {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+model Payments {
+  id                 String            @id @default(cuid())
+  companyId          String
+  company            Company           @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  userSubscriptionId String
+  userSubscription   UserSubscription  @relation(fields: [userSubscriptionId], references: [id], onDelete: Cascade)
+  transactionId      String
+  amount             Int
+  paymentDate        DateTime
+  paymentMethod      String
+  status             PaymentStatusType
+}
+
+model Invoice {
+  id                 String           @id @default(cuid())
+  companyId          String
+  company            Company          @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  userSubscriptionId String
+  userSubscription   UserSubscription @relation(fields: [userSubscriptionId], references: [id], onDelete: Cascade)
+  amount             Int
+  issueDate          DateTime
+  dueDate            DateTime
+  status             InvoiceStatus
+}
+
+enum InvoiceStatus {
+  PAID
+  UNPAID
+}
+
+enum PaymentStatusType {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+model FreeTrail {
+  freeTrailId String   @id @default(cuid())
+  companyId   String   @unique
+  company     Company  @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime
+  isExpired   Boolean
+}
+
+/////
+
+// model Conversation {
+//   id        String   @id @default(cuid())
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   participantIds String[]
+//   participants   Employee[]
+
+//   messageIds String[]
+//   messages   Message[]
+// }
+
+// model Message {
+//   id String @id @default(cuid())
+
+//   conversationId String
+//   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete:Cascade)
+
+//   senderId String
+//   sender   Employee   @relation(fields: [senderId], references: [employeeId], onDelete:Cascade)
+
+//   body      String
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+// }
+
+enum TaskStatusType {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+model Task {
+  task_id   String   @id @default(cuid())
+  task_name String
+  deadline  DateTime @db.Timestamptz(3)
+
+  statusType   TaskStatusType @default(PENDING)
+  taskReceiver String
+  employee     Employee       @relation(fields: [taskReceiver], references: [employeeId], onDelete: Cascade)
+
+  taskAssigner String
+  company      Company @relation(fields: [taskAssigner], references: [companyId], onDelete: Cascade)
+
+  notification Notification[] @relation("taskForEmployee")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("tasks")
+}
+
+model Roles {
+  roleId         String           @id @default(cuid())
+  roleName       String
+  description    String
+  companyId      String
+  company        Company          @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  userRole       UserRole[]
+  rolePermission RolePermission[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@map("roles")
+}
+
+model RolePermission {
+  id        String  @id @default(cuid())
+  action    String
+  resource  String
+  roleId    String
+  role      Roles   @relation(fields: [roleId], references: [roleId], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  @@map("rolePermission")
+}
+
+model UserRole {
+  id         String   @id @default(cuid())
+  employeeId String
+  roleId     String
+  employee   Employee @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  role       Roles    @relation(fields: [roleId], references: [roleId], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("userRoles")
+}
+
+model CompanyProductivityratio {
+  id                         String  @id @default(cuid())
+  companyId                  String
+  company                    Company @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  dailyRatio                 Float
+  weeklyRatio                Float
+  workingDays                Int
+  pointsPerMinuteLateClockin Float   @default(1)
+  pointsPerMinuteAppUsed     Float   @default(1)
+  pointsPerIncompleteTask    Float   @default(1)
+}
+
+model Productivity {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  employeeId            String
+  employee              Employee @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  dailyProductiveRatio  Float    @default(0)
+  weeklyProductiveRatio Float    @default(0)
+  dateFrom              DateTime
+  dateTo                DateTime
+  isProductive          Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model IdleTimeOfEmployee {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  employeeId       String
+  employee         Employee @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  idleTimeDuration String
+  startTime        String
+  endTime          String
+  date             String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model CompanyLoginHistory {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
+  loginTime  String
+  deviceType String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
