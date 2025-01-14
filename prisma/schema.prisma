@@ -77,6 +77,7 @@ model Company {
   dailyScreenshotCount     Int                         @default(0)
   lastScreenshotReset      DateTime?
   loginTime                String?
+  workingDays              String[]
 
   @@map("companies")
 }
@@ -94,7 +95,8 @@ model companyRegistrationOTP {
 model forgetPwOTPStore {
   forgetPwId   String   @id @default(cuid())
   companyEmail String
-  otp          String
+  otp          String?
+  status       Boolean?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -196,6 +198,9 @@ model Employee {
   idleTimeOfEmployee      IdleTimeOfEmployee[]
   CompanyLoginHistory     CompanyLoginHistory[]
   keywordFoundEmployee    KeywordFoundEmployee[]
+  Timer                   Timer[]
+  otp                     String?
+  status                  Boolean?
   createdAt               DateTime                    @default(now())
   updatedAt               DateTime                    @updatedAt
 
@@ -330,6 +335,15 @@ model ActualTimeOfCompany {
 
 // }
 
+// model ReAttendance {
+//   id                 String     @id @default(cuid())
+//   actualDate         String
+//   employeeLoginTime  DateTime
+//   employeeLogoutTime DateTime?
+//   attendanceId       String
+//   attendance         Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+// }
+
 model Attendance {
   id                 String              @id @default(cuid())
   actualDate         String
@@ -344,6 +358,9 @@ model Attendance {
   departmentId       String?
   teamId             String?
   companyId          String
+  totalWorkingHours  String?
+  // Re Attendance Relation
+  // reAttendance       ReAttendance[]
   metadata           AttendanceMetadata? // New relation for timezone info       
   employee           Employee            @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
   department         Department?         @relation(fields: [departmentId], references: [departmentId], onDelete: Cascade)
@@ -819,13 +836,27 @@ model IdleTimeOfEmployee {
 }
 
 model CompanyLoginHistory {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   companyId  String
-  company    Company  @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  company    Company   @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
   employeeId String?
   employee   Employee? @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
   loginTime  String
   deviceType String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Timer {
+  id         String   @id @default(cuid())
+  startTime  DateTime
+  isOnBreak  Boolean
+  activeTime Int      @default(0)
+  totalTime  Int      @default(0)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [employeeId], onDelete: Cascade)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@map("timer")
 }

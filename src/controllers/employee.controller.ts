@@ -10,6 +10,7 @@ import {
 import { message } from "../lib/multer.js";
 import { generateDeletedEmpPDF } from "../utils/generatePdf/deletedEmpPdf.js";
 import { attendancePdf, deletedEmpPdf } from "../lib/mail.js";
+import { forgetPasswordEmployee } from "../lib/mail.js";
 
 export const registerEmployee = async (
   req: Request,
@@ -85,15 +86,26 @@ export const registerEmployee = async (
     );
   }
 
-    //checking weather roleId is matched or not
-    const role = await prisma.roles.findFirst({ where: { roleId } });
+  const CompanyEmailCheck = await prisma.company.findFirst({
+    where: { companyEmail: email },
+  });
 
-    if (!role) {
-      return next(
-        customErrorHandler(res, "This roleId is invalid", 400)
-      );
-    }
+  if (CompanyEmailCheck) {
+    return next(
+      customErrorHandler(
+        res,
+        "Company email cannot be same as employee email",
+        400
+      )
+    );
+  }
 
+  //checking weather roleId is matched or not
+  const role = await prisma.roles.findFirst({ where: { roleId } });
+
+  if (!role) {
+    return next(customErrorHandler(res, "This roleId is invalid", 400));
+  }
 
   const companyId = (req as any).user.companyId;
 
@@ -119,7 +131,7 @@ export const registerEmployee = async (
   // Generate unique employee code
   const employeeCount = await prisma.employee.count({ where: { companyId } });
   const employeeCode = `${companyCode}-emp-${employeeCount + 1}`;
-  
+
   // Create new employee with correct position structure
   const newEmployee = await prisma.employee.create({
     data: {
@@ -193,7 +205,7 @@ export const loginEmployee = async (
     return next(customErrorHandler(res, "Enter a valid email address", 400));
   }
 
-  console.log("email:", email);
+  // console.log("email:", email);
 
   // Find employee in the database
   const employee = await prisma.employee.findFirst({
@@ -229,8 +241,8 @@ export const loginEmployee = async (
       customErrorHandler(
         res,
         "You are currently inactive. Please contact your company.",
-        401,
-      ),
+        401
+      )
     );
   }
 
@@ -253,12 +265,13 @@ export const loginEmployee = async (
     process.env.JWT_LOGIN_SECRET,
     process.env.JWT_EXPIRY_TIME
   );
+  const { password: _, ...employeeData } = employee;
 
   // Respond with a success message and the token
-  return res.status(200).json({ message: "Login Success", token });
+  return res
+    .status(200)
+    .json({ message: "Login Success", token, data: employeeData });
 };
-
-
 
 export const loginEmployeeInAdmin = async (
   req: Request,
@@ -333,7 +346,7 @@ export const loginEmployeeInAdmin = async (
     process.env.JWT_EXPIRY_TIME
   );
 
-  return res.status(200).json({status, message: "Login Success", token });
+  return res.status(200).json({ status, message: "Login Success", token });
 };
 
 export const updateEmployeeDepartmentAndTeam = async (
@@ -404,7 +417,7 @@ export const updateEmployeeDepartmentAndTeam = async (
 //       teamId:true,
 //       email:true,
 //       employeeAddress:true,
-//       employeeId:true,
+//       empllgqoyeeId:true,
 //       employeeName:true,
 //       isActive:true,
 //       phoneNumber:true,
@@ -608,4 +621,259 @@ export const sendDeletedEmpReport = async (req: any, res: any, next: any) => {
     attachment: pdfBuffer,
   });
   return res.json({ deletedEmp });
+};
+
+//Forget password for employee
+
+export const forgetPassword = async (req: any, res: any, next: any) => {
+  try {
+    //Taking body from front-end.
+    const { email, companyName } = req.body;
+
+    //Validation if comming field is empty or not.
+    if (!email) {
+      return next(
+        customErrorHandler(res, `Employee email field cannot be empty`, 400)
+      );
+    }
+    if (!companyName) {
+      return next(
+        customErrorHandler(res, `Company-Name field cannot be empty`, 400)
+      );
+    }
+
+    //validating if email is in correct format or not.
+    if (
+      /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email) === false
+    ) {
+      return next(
+        customErrorHandler(res, "Employee email must be a valid email", 400)
+      );
+    }
+
+    //Checking if companyName exist in DB or not
+    const company = await prisma.company.findMany();
+
+    const matchingCompany = company.find(
+      (company) =>
+        company.companyName.trim().toLocaleLowerCase() ===
+        companyName.trim().toLocaleLowerCase()
+    );
+
+    if (!matchingCompany) {
+      return next(
+        customErrorHandler(
+          res,
+          "No company is register with this companyName",
+          400
+        )
+      );
+    }
+
+    //Checking if email exist in DB or not
+    const employeeEmail = await prisma.employee.findFirst({
+      where: {
+        email: email,
+        companyId: matchingCompany.companyId,
+      },
+    });
+
+    if (!employeeEmail) {
+      return next(
+        customErrorHandler(
+          res,
+          "No employee is register with this email in company please enter correct email",
+          400
+        )
+      );
+    }
+
+    // Function to generate OTP
+    function generateOTPforForgetPw() {
+      const randomNum = Math.random() * 900000;
+      const otp = Math.floor(100000 + randomNum);
+      return otp;
+    }
+
+    // Generate OTP
+    const otp = generateOTPforForgetPw();
+
+    // Send OTP to email (implementation not shown here)
+    await forgetPasswordEmployee({
+      email: email,
+      subject: "Verify your OTP",
+      companyName: matchingCompany.companyId,
+      employeeName: employeeEmail.employeeName,
+      otp: otp,
+    });
+
+    // Update otp in the database
+    await prisma.employee.update({
+      where: { email: email, companyId: matchingCompany.companyId },
+      data: {
+        otp: otp.toString(),
+      },
+    });
+
+    // Respond with a success message
+    return res.json({
+      message: `OTP has been sent to your email: ${email}`,
+    });
+  } catch (error: any) {
+    return next(
+      customErrorHandler(res, `Internal server error || ${error.message}`, 500)
+    );
+  }
+};
+
+export const verifyOtp = async (req: any, res: any, next: any) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email) {
+      return next(customErrorHandler(res, `email field cannot be empty`, 400));
+    }
+    if (!otp) {
+      return next(customErrorHandler(res, `otp field cannot be empty`, 400));
+    }
+
+    const checkEmail = await prisma.employee.findFirst({
+      where: {
+        email: email,
+      },
+    });
+
+    if (!checkEmail) {
+      return next(
+        customErrorHandler(res, `provided email is not register`, 400)
+      );
+    }
+    if (!checkEmail.otp) {
+      return next(
+        customErrorHandler(res, `otp is already used or not generated`, 400)
+      );
+    }
+
+    if (checkEmail.otp === otp) {
+      await prisma.employee.update({
+        where: {
+          employeeId: checkEmail!.employeeId,
+        },
+        data: {
+          status: true,
+          otp: null,
+        },
+      });
+      return res.status(200).json({
+        message: "verified",
+      });
+    } else {
+      customErrorHandler(res, `otp is incorrect`, 400);
+    }
+  } catch (error: any) {
+    return next(
+      customErrorHandler(res, `Internal server error || ${error.message}`, 500)
+    );
+  }
+};
+
+export const resetPassword = async (req: any, res: any, next: any) => {
+  try {
+    const { email, password, confirmPassword } = req.body;
+    if (!email) {
+      return next(customErrorHandler(res, `email field cannot be empty`, 400));
+    }
+    if (!password) {
+      return next(
+        customErrorHandler(res, `password field cannot be empty`, 400)
+      );
+    }
+    if (!confirmPassword) {
+      return next(
+        customErrorHandler(res, `confirmPassword field cannot be empty`, 400)
+      );
+    }
+
+    const checkEmail = await prisma.employee.findFirst({
+      where: {
+        email: email,
+      },
+    });
+
+    if (!checkEmail) {
+      return next(
+        customErrorHandler(res, `provided email is not register`, 400)
+      );
+    }
+
+    if (checkEmail.otp) {
+      return next(customErrorHandler(res, `your otp is not verified`, 400));
+    }
+
+    // Validate password format
+    if (
+      /^(?=(.*[a-z]))(?=(.*[A-Z]))(?=(.*\W)).{8,}$/.test(password) === false
+    ) {
+      return next(
+        customErrorHandler(
+          res,
+          "password must be a valid with A minimum length of 8 characters At least one uppercase letter At least one lowercase letter At least one special character",
+          400
+        )
+      );
+    }
+
+    if (password !== confirmPassword) {
+      return next(
+        customErrorHandler(res, `confirmPassword and password is not same`, 400)
+      );
+    }
+
+    if (checkEmail.status === null) {
+      return next(
+        customErrorHandler(res, `please generate otp to reset password`, 400)
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const updatePassword = await prisma.employee.update({
+      where: {
+        employeeId: checkEmail.employeeId,
+      },
+      data: {
+        password: hashedPassword,
+      },
+    });
+
+    if (!updatePassword) {
+      return next(
+        customErrorHandler(
+          res,
+          `something went wrong while updating employee password`,
+          400
+        )
+      );
+    }
+
+    if (updatePassword) {
+      await prisma.employee.update({
+        where: {
+          employeeId: checkEmail.employeeId,
+        },
+        data: {
+          status: null,
+        },
+      });
+      return res
+        .status(200)
+        .json({
+          message: "Employee password changed successfully",
+          data: updatePassword,
+        });
+    }
+  } catch (error: any) {
+    return next(
+      customErrorHandler(res, `Internal server error || ${error.message}`, 500)
+    );
+  }
 };

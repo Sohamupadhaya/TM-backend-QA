@@ -30,50 +30,47 @@ export const registerCompany = async (
     companyWebsite,
     password,
     confirmPassword,
+    // workingDays,
   } = req.body;
 
-  if (!companyName) {
-    return next(customErrorHandler(res, "company name is required", 400));
+  // const validDays = [
+  //   "monday",
+  //   "tuesday",
+  //   "wednesday",
+  //   "thursday",
+  //   "friday",
+  //   "saturday",
+  //   "sunday",
+  // ];
+
+  const fields = [
+    { key: "companyEmail", Label: "Company Email" },
+    { key: "companyName", Label: "Company Name" },
+    { key: "country", Label: "Country" },
+    { key: "state", Label: "State" },
+    { key: "city", Label: "City" },
+    { key: "postalCodeNo", Label: "Postal Code No" },
+    { key: "companyPhoneNumber", Label: "Company Phone Number" },
+    { key: "companyWebsite", Label: "Company Website" },
+    { key: "password", Label: "Password" },
+    { key: "confirmPassword", Label: "Confirm Password" },
+    // { key: "workingDays", Label: "Working Days" },
+  ];
+
+  // Validate required fields
+  for (const field of fields) {
+    if (!req.body[field.key]) {
+      return next(customErrorHandler(res, `${field.Label} is required`, 400));
+    }
   }
 
-  if (!companyEmail) {
-    return next(customErrorHandler(res, "company email is required", 400));
-  }
-
-  if (!country) {
-    return next(customErrorHandler(res, "country is required", 400));
-  }
-
-  if (!state) {
-    return next(customErrorHandler(res, "state is required", 400));
-  }
-
-  if (!city) {
-    return next(customErrorHandler(res, "city is required", 400));
-  }
-
-  if (!postalCodeNo) {
-    return next(customErrorHandler(res, "postal code No is required", 400));
-  }
-
-  if (!password) {
-    return next(customErrorHandler(res, "password is required", 400));
-  }
-
-  if (!companyPhoneNumber) {
-    return next(customErrorHandler(res, "phone number is required", 400));
-  }
-
-  if (!companyWebsite) {
-    return next(customErrorHandler(res, "website link is required", 400));
-  }
-
-  if (!confirmPassword) {
-    return next(customErrorHandler(res, "confirm password is required", 400));
-  }
-
-  // Validate password format
+  // validate working days
+  // if (
+  //   !Array.isArray(workingDays) ||
+  //   !workingDays.every((day: string) => validDays.includes(day.toLowerCase()))
+  // )
   if (/^(?=(.*[a-z]))(?=(.*[A-Z]))(?=(.*\W)).{8,}$/.test(password) === false) {
+    // Validate password format
     return next(
       customErrorHandler(
         res,
@@ -117,7 +114,7 @@ export const registerCompany = async (
       OR: [
         { companyEmail },
         { companyPhoneNumber },
-        { companyName },
+        { companyName: companyName.trim().toLowerCase() },
         { companyWebsite },
       ],
     },
@@ -128,7 +125,10 @@ export const registerCompany = async (
         customErrorHandler(res, "Company with this email already exists", 400)
       );
     }
-    if (company.companyName === companyName) {
+    if (
+      company.companyName.trim().toLowerCase() ===
+      companyName.trim().toLowerCase()
+    ) {
       return next(
         customErrorHandler(res, "Company with this name already exists", 400)
       );
@@ -166,7 +166,7 @@ export const registerCompany = async (
   await prisma.company.create({
     data: {
       companyEmail,
-      companyName,
+      companyName: companyName.trim().toLowerCase(),
       country,
       state,
       city,
@@ -175,6 +175,7 @@ export const registerCompany = async (
       companyWebsite,
       password: hashedPassword,
       companyCode,
+      // workingDays,
     },
   });
 
@@ -291,232 +292,245 @@ export const verifyCompanyRegistrationOTP = async (
 
 // Login Company
 export const loginCompany = async (req: any, res: any, next: any) => {
-  // data comming from body
-  const { companyEmail, password } = req.body;
+  try {
+    // data comming from body
+    const { companyEmail, password } = req.body;
 
-  let compId: string;
-  let empId: string;
-  let devType: string;
+    let compId: string;
+    let empId: string;
+    let devType: string;
 
-  //checking weather body data is empty or not
-  if (!companyEmail) {
-    return next(customErrorHandler(res, "email field is not provided", 400));
-  }
-
-  if (!password) {
-    return next(customErrorHandler(res, "password field is not provided", 400));
-  }
-
-  //checking weather email is given email is register or not in DB
-  const company = await prisma.company.findFirst({
-    where: {
-      companyEmail,
-    },
-  });
-
-  // console.log(company);
-  if (!company) {
-    const employee = await prisma.employee.findFirst({
-      where: {
-        email: companyEmail,
-      },
-    });
-    if (!employee) {
-      return next(customErrorHandler(res, "No user found", 400));
+    //checking weather body data is empty or not
+    if (!companyEmail) {
+      return next(customErrorHandler(res, "email field is not provided", 400));
     }
 
-    //Validating employee is there or not
-    if (employee) {
-      compId = employee.companyId;
-      empId = employee.employeeId;
-      const roleOfUser = await prisma.userRole.findFirst({
+    if (!password) {
+      return next(
+        customErrorHandler(res, "password field is not provided", 400)
+      );
+    }
+
+    //checking weather email is given email is register or not in DB
+    const company = await prisma.company.findFirst({
+      where: {
+        companyEmail,
+      },
+    });
+
+    // console.log(company);
+    if (!company) {
+      const employee = await prisma.employee.findFirst({
         where: {
-          employeeId: employee.employeeId,
+          email: companyEmail,
         },
       });
-      if (!roleOfUser) {
-        return next(customErrorHandler(res, "No role found", 400));
+      if (!employee) {
+        return next(customErrorHandler(res, "No user found", 400));
       }
-      if (roleOfUser) {
-        const roleOfUsers = await prisma.roles.findFirst({
+
+      //Validating employee is there or not
+      if (employee) {
+        compId = employee.companyId;
+        empId = employee.employeeId;
+        const roleOfUser = await prisma.userRole.findFirst({
           where: {
-            roleId: roleOfUser.roleId,
+            employeeId: employee.employeeId,
           },
         });
-        if (!roleOfUsers) {
+        if (!roleOfUser) {
           return next(customErrorHandler(res, "No role found", 400));
         }
-        if (roleOfUsers.roleName.toLowerCase() !== "admin") {
-          return next(customErrorHandler(res, "the user is not admin", 400));
-        } else {
-          const isMatch = await bcrypt.compareSync(password, employee.password);
-          if (!isMatch) {
-            return next(customErrorHandler(res, "Invalid Credentials", 400));
-          }
-          const token = createToken(
-            { companyEmail, companyId: employee.companyId },
-            process.env.JWT_LOGIN_SECRET,
-            process.env.JWT_EXPIRY_TIME
-          );
-          //generating current utc time.
-
-          function getCurrentUtcTime(): string {
-            const currentUtcTime = new Date().toISOString();
-            return currentUtcTime;
-          }
-
-          const FindCompanyOwner = await prisma.company.findFirst({
+        if (roleOfUser) {
+          const roleOfUsers = await prisma.roles.findFirst({
             where: {
-              companyId: employee.companyId,
+              roleId: roleOfUser.roleId,
             },
           });
-
-          if (!FindCompanyOwner) {
-            return next(
-              customErrorHandler(res, "Company user notrr found", 400)
+          if (!roleOfUsers) {
+            return next(customErrorHandler(res, "No role found", 400));
+          }
+          if (roleOfUsers.roleName.toLowerCase() !== "admin") {
+            return next(customErrorHandler(res, "the user is not admin", 400));
+          } else {
+            const isMatch = await bcrypt.compareSync(
+              password,
+              employee.password
             );
-          }
-
-          // excluding password so it couldnot be display in response
-          const { password: _, ...employeeData } = employee;
-          const { password: __, ...companyData } = FindCompanyOwner;
-          // console.log(new Date());
-
-          interface DeviceInfo {
-            os: string;
-            device: string;
-          }
-          function getDeviceInfo(userAgentString: string): DeviceInfo {
-            const agent = useragent.parse(userAgentString);
-            const os = agent.os.toString(); // Operating System
-            const device = agent.device.toString(); // Device
-            return {
-              os,
-              device,
-            };
-          }
-          const userAgentString = req.headers["user-agent"];
-
-          const deviceInfo = getDeviceInfo(userAgentString);
-
-          const loginUserHistory = await prisma.companyLoginHistory.create({
-            data: {
-              companyId: compId,
-              employeeId: empId,
-              loginTime: new Date().toISOString(),
-              deviceType: deviceInfo.os,
-            },
-          });
-          if (!loginUserHistory) {
-            return next(
-              customErrorHandler(
-                res,
-                "Something went wrong while creating loginCompanyHistory",
-                400
-              )
+            if (!isMatch) {
+              return next(customErrorHandler(res, "Invalid Credentials", 400));
+            }
+            const token = createToken(
+              { companyEmail, companyId: employee.companyId },
+              process.env.JWT_LOGIN_SECRET,
+              process.env.JWT_EXPIRY_TIME
             );
+            //generating current utc time.
+
+            function getCurrentUtcTime(): string {
+              const currentUtcTime = new Date().toISOString();
+              return currentUtcTime;
+            }
+
+            const FindCompanyOwner = await prisma.company.findFirst({
+              where: {
+                companyId: employee.companyId,
+              },
+            });
+
+            if (!FindCompanyOwner) {
+              return next(
+                customErrorHandler(res, "Company user notrr found", 400)
+              );
+            }
+
+            // excluding password so it couldnot be display in response
+            const { password: _, ...employeeData } = employee;
+            const { password: __, ...companyData } = FindCompanyOwner;
+            // console.log(new Date());
+
+            interface DeviceInfo {
+              os: string;
+              device: string;
+            }
+            function getDeviceInfo(userAgentString: string): DeviceInfo {
+              const agent = useragent.parse(userAgentString);
+              const os = agent.os.toString(); // Operating System
+              const device = agent.device.toString(); // Device
+              return {
+                os,
+                device,
+              };
+            }
+            const userAgentString = req.headers["user-agent"];
+
+            const deviceInfo = getDeviceInfo(userAgentString);
+
+            const loginUserHistory = await prisma.companyLoginHistory.create({
+              data: {
+                companyId: compId,
+                employeeId: empId,
+                loginTime: new Date().toISOString(),
+                deviceType: deviceInfo.os,
+              },
+            });
+            if (!loginUserHistory) {
+              return next(
+                customErrorHandler(
+                  res,
+                  "Something went wrong while creating loginCompanyHistory",
+                  400
+                )
+              );
+            }
+            return res.status(200).json({
+              message: "Login Successfully",
+              token,
+              company: companyData,
+              employee: employeeData,
+            });
           }
-          return res.status(200).json({
-            message: "Login Successfully",
-            token,
-            company: companyData,
-            employee: employeeData,
-          });
         }
       }
     }
-  }
 
-  //if company is directly login in .
-  if (company) {
-    //checking password matches or not
-    const isMatch = await bcrypt.compareSync(password, company.password);
+    //if company is directly login in .
+    if (company) {
+      //checking password matches or not
+      const isMatch = await bcrypt.compareSync(password, company.password);
 
-    //validation if password didnot match
-    if (!isMatch)
-      return next(customErrorHandler(res, "Invalid Credentials", 400));
+      //validation if password didnot match
+      if (!isMatch)
+        return next(customErrorHandler(res, "Invalid Credentials", 400));
 
-    //generating Token
-    const token = createToken(
-      { companyEmail, companyId: company.companyId },
-      process.env.JWT_LOGIN_SECRET,
-      process.env.JWT_EXPIRY_TIME
-    );
-
-    //if company verify status is false
-    if (!company.isVerified)
-      return next(
-        customErrorHandler(res, "Your OTP verification is not completed.", 400)
+      //generating Token
+      const token = createToken(
+        { companyEmail, companyId: company.companyId },
+        process.env.JWT_LOGIN_SECRET,
+        process.env.JWT_EXPIRY_TIME
       );
 
-    //generating current utc time.
-    function getCurrentUtcTime(): string {
-      const currentUtcTime = new Date().toISOString();
-      return currentUtcTime;
+      //if company verify status is false
+      if (!company.isVerified)
+        return next(
+          customErrorHandler(
+            res,
+            "Your OTP verification is not completed.",
+            400
+          )
+        );
+
+      //generating current utc time.
+      function getCurrentUtcTime(): string {
+        const currentUtcTime = new Date().toISOString();
+        return currentUtcTime;
+      }
+
+      //checking which device is sending request
+      interface DeviceInfo {
+        os: string;
+        device: string;
+      }
+      function getDeviceInfo(userAgentString: string): DeviceInfo {
+        const agent = useragent.parse(userAgentString);
+        const os = agent.os.toString(); // Operating System
+        const device = agent.device.toString(); // Device
+        return {
+          os,
+          device,
+        };
+      }
+
+      //checking request header and graving user-agent from header.
+      const userAgentString = req.headers["user-agent"];
+
+      const deviceInfo = getDeviceInfo(userAgentString);
+
+      //storing data in login-history-database
+      const loginUserHistory = await prisma.companyLoginHistory.create({
+        data: {
+          companyId: company.companyId,
+          employeeId: null,
+          loginTime: new Date().toISOString(),
+          deviceType: deviceInfo.os,
+        },
+      });
+
+      //validation if
+      if (!loginUserHistory) {
+        return next(
+          customErrorHandler(
+            res,
+            "Something went wrong while creating loginCompanyHistory",
+            400
+          )
+        );
+      }
+
+      // console.log(getCurrentUtcTime());
+
+      //update the login time in DB
+      const loginTimeofUser = await prisma.company.update({
+        where: { companyEmail: companyEmail }, // Specify the company to update by id
+        data: {
+          loginTime: getCurrentUtcTime(), // Only updating loginTime field
+        },
+      });
+
+      //if any thing went wrong while updating it will send an error message
+      if (!loginTimeofUser) {
+        customErrorHandler(res, "problem while inserting login time.", 400);
+      }
+
+      // excluding password so it couldnot be display in response
+      const { password: _, ...companyData } = loginTimeofUser;
+
+      return res
+        .status(200)
+        .json({ message: "Login Successfully", token, company: companyData });
     }
-
-    //checking which device is sending request
-    interface DeviceInfo {
-      os: string;
-      device: string;
-    }
-    function getDeviceInfo(userAgentString: string): DeviceInfo {
-      const agent = useragent.parse(userAgentString);
-      const os = agent.os.toString(); // Operating System
-      const device = agent.device.toString(); // Device
-      return {
-        os,
-        device,
-      };
-    }
-
-    //checking request header and graving user-agent from header.
-    const userAgentString = req.headers["user-agent"];
-
-    const deviceInfo = getDeviceInfo(userAgentString);
-
-    //storing data in login-history-database
-    const loginUserHistory = await prisma.companyLoginHistory.create({
-      data: {
-        companyId: company.companyId,
-        employeeId: null,
-        loginTime: new Date().toISOString(),
-        deviceType: deviceInfo.os,
-      },
-    });
-
-    //validation if
-    if (!loginUserHistory) {
-      return next(
-        customErrorHandler(
-          res,
-          "Something went wrong while creating loginCompanyHistory",
-          400
-        )
-      );
-    }
-
-    // console.log(getCurrentUtcTime());
-
-    //update the login time in DB
-    const loginTimeofUser = await prisma.company.update({
-      where: { companyEmail: companyEmail }, // Specify the company to update by id
-      data: {
-        loginTime: getCurrentUtcTime(), // Only updating loginTime field
-      },
-    });
-
-    //if any thing went wrong while updating it will send an error message
-    if (!loginTimeofUser) {
-      customErrorHandler(res, "problem while inserting login time.", 400);
-    }
-
-    // excluding password so it couldnot be display in response
-    const { password: _, ...companyData } = loginTimeofUser;
-
-    return res
-      .status(200)
-      .json({ message: "Login Successfully", token, company: companyData });
+  } catch (error: any) {
+    return next(customErrorHandler(res, `server Error ${error.message}`, 500));
   }
 };
 
@@ -704,7 +718,28 @@ export const getAllEmployeeOfTeams = async (
 };
 
 export const forgetPassword = async (req: any, res: any, next: any) => {
-  const { companyEmail } = req.body;
+  const { companyEmail, companyName } = req.body;
+
+  //validation for email
+  if (!companyName) {
+    return next(
+      customErrorHandler(res, "Company name field is not provided.", 400)
+    );
+  }
+
+  //validation for email
+  if (!companyEmail) {
+    return next(customErrorHandler(res, "Email field is not provided.", 400));
+  }
+
+  // Validate email format
+  if (
+    /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(companyEmail) ===
+    false
+  ) {
+    return next(customErrorHandler(res, "Email must be a valid email", 400));
+  }
+
   // Find the company by email
   const company = await prisma.company.findFirst({
     where: {
@@ -713,7 +748,11 @@ export const forgetPassword = async (req: any, res: any, next: any) => {
   });
   // If the company does not exist, return an error
   if (!company) {
-    return next(customErrorHandler(res, "Email not found.", 400));
+    return next(customErrorHandler(res, "Email is not register with us.", 400));
+  }
+  // If the company does not exist, return an error
+  if (company.companyName.toLowerCase() !== companyName.trim().toLowerCase()) {
+    return next(customErrorHandler(res, "Company Name is incorrect", 400));
   }
   // Function to generate OTP
   function generateOTPforForgetPw() {
@@ -732,13 +771,38 @@ export const forgetPassword = async (req: any, res: any, next: any) => {
     companyName: company.companyName,
     otp: otp,
   });
-  // Create entry in the database
-  await prisma.forgetPwOTPStore.create({
-    data: {
-      otp: otp.toString(),
-      companyEmail,
+
+  //check alreadyEmail is not
+  const checkOtpAndUpdate = await await prisma.forgetPwOTPStore.findFirst({
+    where: {
+      companyEmail: companyEmail,
     },
   });
+
+  // update otp
+  if (checkOtpAndUpdate) {
+    await prisma.forgetPwOTPStore.update({
+      where: {
+        // Condition to find the record (e.g., unique identifier)
+        forgetPwId: checkOtpAndUpdate.forgetPwId, // example ID
+      },
+      data: {
+        // Data to update
+        otp: otp.toString(),
+        status: null,
+      },
+    });
+  }
+
+  if (!checkOtpAndUpdate) {
+    // Create entry in the database
+    await prisma.forgetPwOTPStore.create({
+      data: {
+        otp: otp.toString(),
+        companyEmail,
+      },
+    });
+  }
   // Respond with a success message
   return res.json({
     message: `OTP has been sent to your email: ${companyEmail}`,
@@ -747,6 +811,14 @@ export const forgetPassword = async (req: any, res: any, next: any) => {
 
 export const verifyForgetPwOTP = async (req: any, res: any, next: any) => {
   const { otp, companyEmail } = req.body;
+
+  if (!otp) {
+    return next(customErrorHandler(res, "otp is required", 400));
+  }
+
+  if (!companyEmail) {
+    return next(customErrorHandler(res, "company email is required", 400));
+  }
 
   // Find the most recent OTP entry for the given email
   const PwOTP = await prisma.forgetPwOTPStore.findFirst({
@@ -759,25 +831,86 @@ export const verifyForgetPwOTP = async (req: any, res: any, next: any) => {
   });
   // Check if an OTP was found and if it matches the provided OTP
   if (PwOTP && otp === PwOTP.otp) {
+    const removeOtp = await prisma.forgetPwOTPStore.update({
+      where: {
+        forgetPwId: PwOTP.forgetPwId,
+      },
+      data: {
+        // List the fields you want to update
+        status: true,
+        otp: null,
+        // You can include multiple fields to update at once
+      },
+    });
+
+    if (!removeOtp) {
+      return next(
+        customErrorHandler(
+          res,
+          "something went wrong while updating otp status",
+          400
+        )
+      );
+    }
     // OTP is verified; you might want to proceed with password reset or other actions
     const company = await prisma.company.findFirst({
       where: {
         companyEmail,
       },
     });
-
     return res.json({ message: "Forget Password OTP is verified." });
   }
 
   // If OTP is incorrect or no OTP was found
-  return next(customErrorHandler(res, "Wrong OTP.", 400));
+  return next(customErrorHandler(res, "Wrong OTP or email.", 400));
 };
 
 export const resetPw = async (req: any, res: any, next: any) => {
   const { companyEmail, newPassword, confirmPassword } = req.body;
 
+  if (!companyEmail) {
+    return next(customErrorHandler(res, "Email field is required", 400));
+  }
+  if (!newPassword) {
+    return next(customErrorHandler(res, "New-password field is required", 400));
+  }
+  if (!confirmPassword) {
+    return next(
+      customErrorHandler(res, "Confirm-password field is required", 400)
+    );
+  }
+
+  const otpStatusChecker = await prisma.forgetPwOTPStore.findFirst({
+    where: {
+      companyEmail,
+    },
+  });
+
   if (newPassword !== confirmPassword) {
-    return res.status(400).json({ message: "Passwords do not match" });
+    return res
+      .status(400)
+      .json({ message: "Confirm-Password and Passwords did not match" });
+  }
+
+  if (otpStatusChecker?.status !== true && otpStatusChecker?.otp === null) {
+    customErrorHandler(res, "you have already changed password", 400);
+  }
+
+  if (otpStatusChecker?.status !== true) {
+    customErrorHandler(res, "otp is not verified", 400);
+  }
+
+  if (
+    /^(?=(.*[a-z]))(?=(.*[A-Z]))(?=(.*\W)).{8,}$/.test(newPassword) === false
+  ) {
+    // Validate password format
+    return next(
+      customErrorHandler(
+        res,
+        "password must be a valid with A minimum length of 8 characters At least one uppercase letter At least one lowercase letter At least one special character",
+        400
+      )
+    );
   }
 
   // Find the company or user based on the decoded email
@@ -785,15 +918,48 @@ export const resetPw = async (req: any, res: any, next: any) => {
     where: { companyEmail },
   });
   if (!company) {
-    return res.status(404).json({ message: "Company not found" });
+    return res
+      .status(400)
+      .json({ message: "This email is not register with us" });
   }
   // Hash the new password
   const hashedPassword = await bcrypt.hash(newPassword, 10);
+
   // Update the password in the database
-  await prisma.company.update({
+  const updatingPassword = await prisma.company.update({
     where: { companyEmail },
     data: { password: hashedPassword },
   });
+
+  if (otpStatusChecker?.status === true && otpStatusChecker?.otp === null) {
+    const removeOtp = await prisma.forgetPwOTPStore.update({
+      where: {
+        forgetPwId: otpStatusChecker!.forgetPwId,
+      },
+      data: {
+        // List the fields you want to update
+        status: null,
+        otp: null,
+        // You can include multiple fields to update at once
+      },
+    });
+
+    if (!removeOtp) {
+      return next(
+        customErrorHandler(
+          res,
+          "something went wrong while updating otp status",
+          400
+        )
+      );
+    }
+  }
+
+  if (!updatingPassword) {
+    return res
+      .status(400)
+      .json({ message: "Something went wrong while updating password" });
+  }
   return res.status(200).json({ message: "Password reset successfully" });
 };
 
@@ -830,6 +996,23 @@ export const resetPw = async (req: any, res: any, next: any) => {
 
 export const changePassword = async (req: any, res: any, next: any) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  if (!currentPassword) {
+    return res
+      .status(400)
+      .json({ message: "Current-password field sholuld be provided" });
+  }
+  if (!newPassword) {
+    return res
+      .status(400)
+      .json({ message: "New-Password field sholuld be provided" });
+  }
+  if (!confirmPassword) {
+    return res
+      .status(400)
+      .json({ message: "Confirm-Password field sholuld be provided" });
+  }
+
   const companyId = (req as any).user.companyId;
 
   // Fetch the company by companyId
@@ -843,6 +1026,19 @@ export const changePassword = async (req: any, res: any, next: any) => {
     return res.status(404).json({ message: "Company not found" });
   }
 
+  if (
+    /^(?=(.*[a-z]))(?=(.*[A-Z]))(?=(.*\W)).{8,}$/.test(newPassword) === false
+  ) {
+    // Validate password format
+    return next(
+      customErrorHandler(
+        res,
+        "password must be a valid with A minimum length of 8 characters At least one uppercase letter At least one lowercase letter At least one special character",
+        400
+      )
+    );
+  }
+
   // Compare the provided currentPassword with the stored hashed password
   const isCurrentPasswordValid = await bcrypt.compare(
     currentPassword,
@@ -850,12 +1046,14 @@ export const changePassword = async (req: any, res: any, next: any) => {
   );
 
   if (!isCurrentPasswordValid) {
-    return res.status(400).json({ message: "Old password doesn't match." });
+    return res.status(400).json({ message: "Old password is incorrect." });
   }
 
   // Check if the new passwords match
   if (newPassword !== confirmPassword) {
-    return res.status(400).json({ message: "New passwords do not match." });
+    return res
+      .status(400)
+      .json({ message: "New-Passwords do not match Confirm-Password." });
   }
 
   // Hash the new password
@@ -1053,8 +1251,7 @@ export const getLoginAllUserHistory = async (req: any, res: any, next: any) => {
     const formattedData = data.map((loginHistory: any) => {
       if (loginHistory.employeeId) {
         employeeIds.push(loginHistory.employeeId);
-      }
-      else{
+      } else {
         companyData.push(loginHistory);
       }
     });
@@ -1072,7 +1269,7 @@ export const getLoginAllUserHistory = async (req: any, res: any, next: any) => {
     }
 
     const mergedData = data
-      .map((history,index) => {
+      .map((history, index) => {
         // Find the employee data for the current login history
         const employee = employees.find(
           (emp) => emp.employeeId === history.employeeId
@@ -1082,13 +1279,13 @@ export const getLoginAllUserHistory = async (req: any, res: any, next: any) => {
         if (employee) {
           // console.log(index);
           return {
-            id:history.id,
-            companyId:history.companyId,
+            id: history.id,
+            companyId: history.companyId,
             employeeId: history.employeeId,
             loginTime: history.loginTime,
-            deviceType:history.deviceType,
-            createdAt:history.createdAt,
-            updatedAt:history.updatedAt,
+            deviceType: history.deviceType,
+            createdAt: history.createdAt,
+            updatedAt: history.updatedAt,
             employeeName: employee.employeeName,
             employeeEmail: employee.email,
             // employeePosition: employee.position,
@@ -1101,8 +1298,80 @@ export const getLoginAllUserHistory = async (req: any, res: any, next: any) => {
       .filter((item) => item !== null); // Remove any null entries (if there were any unmatched employees)
 
     // Step 4: Return the merged data
-    return res.status(200).json({ data: mergedData,companyLogin:companyData });
+    return res
+      .status(200)
+      .json({ data: mergedData, companyLogin: companyData });
   } catch (error) {
     return next(customErrorHandler(res, "Server error", 500));
+  }
+};
+
+export const workingDays = async (req: any, res: any, next: any) => {
+  try {
+    const workingDays = req.body.workingDays;
+    const company = req.user.companyId;
+
+    if (!workingDays) {
+      return next(customErrorHandler(res, "workingDays is required", 400));
+    }
+
+    const validDays = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ];
+
+    // Make sure workingDays is an array, even if it's a single string.
+    let daysArray: string[] = [];
+
+    if (typeof workingDays === "string") {
+      daysArray = [workingDays.trim().toLowerCase()];
+    } else if (Array.isArray(workingDays)) {
+      daysArray = workingDays.map((day: string) => day.trim().toLowerCase());
+    }
+
+    // Validate the workingDays
+    for (const day of daysArray) {
+      if (!validDays.includes(day)) {
+        return next(
+          customErrorHandler(res, "workingDays contains invalid days", 400)
+        );
+      }
+    }
+
+    // Now update the company with the workingDays array
+    const data = await prisma.company.update({
+      where: {
+        companyId: company,
+      },
+      data: {
+        workingDays: daysArray, // This should now be an array of strings
+      },
+    });
+
+    if (!data) {
+      return next(
+        customErrorHandler(
+          res,
+          "something went wrong while updating workingDays",
+          400
+        )
+      );
+    }
+
+    // excluding password so it couldnot be display in response
+    const { password: _, ...companyData } = data;
+
+    return res.status(200).json({
+      status: 200,
+      message: "Working days updated",
+      data: companyData,
+    });
+  } catch (error: any) {
+    return next(customErrorHandler(res, `server Error ${error.message}`, 500));
   }
 };

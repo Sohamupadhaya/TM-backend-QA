@@ -1,0 +1,15 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "src/app.ts", // Adjust the path based on your backend code location
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/src/(.*)",
+        "dest": "/src/"  // Make sure this matches the structure of your serverless functions
+      }
+    ]
+  }

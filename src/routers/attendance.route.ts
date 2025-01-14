@@ -25,6 +25,11 @@ import {
   sendOverTimeAttInMail,
   takeBreak,
 } from "../controllers/attendance.controller.js";
+import { 
+  startTimer,
+  endTimer,
+  getTimeStats
+} from "../controllers/countdown.controller.js";
 import { isAuthenticatedCompany } from "../middlewares/isAuthenticatedCompany.js";
 import { isAuthenticated } from "../middlewares/isAuthenticatedUser.js";
 import { checkPermission } from "../middlewares/rolePermission.js";
@@ -53,6 +58,21 @@ router.get(
   "/today-clockin",
   catchAsync(isAuthenticatedEmployee),
   catchAsync(employeeTodayClockInAndClockOutData)
+);
+router.post(
+  "/start-timer",
+  catchAsync(isAuthenticatedEmployee),
+  catchAsync(startTimer)
+);
+router.post(
+  "/end-timer",
+  catchAsync(isAuthenticatedEmployee),
+  catchAsync(endTimer)
+);
+router.get(
+  "/get-time",
+  catchAsync(isAuthenticatedEmployee),
+  catchAsync(getTimeStats)
 );
 router.get(
   "/get-own-attendance",

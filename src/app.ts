@@ -20,7 +20,7 @@ dotenv.config({ path: "./.env" });
 app.use("/uploads", express.static("uploads"));
 
 export const envMode = process.env.NODE_ENV?.trim() || "DEVELOPMENT";
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8000;
 
 // const app = express();
 // const allowedOrigins = ["https://kit-pottery-include-continent.trycloudflare.com","http://localhost:5173","http://192.168.1.75:5173","http://localhost:50960"]
@@ -33,21 +33,21 @@ app.use(express.urlencoded({ extended: true }));
 // startProducer();
 // startConsumer();
 
-const allowedOrigins = [ "https://pf-league-defence-stability.trycloudflare.com", "http://localhost:3000", "http://localhost:5000", "http://localhost:5173", "*"]
+const allowedOrigins = ["https://pf-league-defence-stability.trycloudflare.com", "http://localhost:3000", "http://localhost:3001", "http://localhost:5000", "http://localhost:5173", "*"]
 
 app.use(cors({
-  origin: function(origin: any, callback) {
-      // console.log(origin)
-      // Allow requests with no origin (Flutter apps, Postman) or from allowed origins
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true); // Allow these origins
-      } else {
-        app.use(cors({ origin: "*", credentials: true }));
-        // callback(new Error("Not allowed by CORS"), false); // Block other origins
-      }
-    },
-    credentials: true, // Allow credentials (cookies, authorization headers, etc.)
-  })
+  origin: function (origin: any, callback) {
+    // console.log(origin)
+    // Allow requests with no origin (Flutter apps, Postman) or from allowed origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true); // Allow these origins
+    } else {
+      app.use(cors({ origin: "*", credentials: true }));
+      // callback(new Error("Not allowed by CORS"), false); // Block other origins
+    }
+  },
+  credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+})
 );
 app.use(morgan("dev"));
 // app.use(express.static('setupfile'));

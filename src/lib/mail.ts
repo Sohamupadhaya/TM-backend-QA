@@ -338,3 +338,30 @@ export const appHistortPdf = async ({ email, subject, companyName, attachment, d
   // Send the email
   await transporter.sendMail(mailOption);
 };
+
+export const forgetPasswordEmployee = async ({ email, subject, otp, companyName,employeeName} :any) => {
+  const pwMail = {
+    from: `Team Monitor <${process.env.SMTP_MAIL}>`,
+    to : email,
+    subject,
+    html:`
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; background-color: #f3f3f3;">
+      <tr>
+        <td align="center" style="padding: 30px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; max-width: 600px; background-color: #ffffff; border-radius: 10px; box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);">
+            <tr>
+              <td align="center" style="padding: 40px;">
+                <h1 style="color: #333333; margin: 0;">Verify Your OTP</h1>
+                <p style="color: #777777; margin: 20px 0;">Hi, ${employeeName},from ${companyName} company</p>
+                <p style="color: #777777; margin: 20px 0;"> Here is ypur OTP to reset your password. </p>
+                ${otp}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+    `,
+  }
+  await transporter.sendMail(pwMail);
+}

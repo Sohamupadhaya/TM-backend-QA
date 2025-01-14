@@ -1,7 +1,7 @@
 import { customErrorHandler } from "../utils/customErrorHandler.js";
 import prisma from "../models/index.js";
 import { sendNotificationFromCompanyToEmployee, sendNotificationFromEmployeeToCompany } from "./notification.controller.js";
-import { NextFunction,Request,Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import puppeteer from 'puppeteer';
 import { leaveSummaryPdf } from "../lib/mail.js";
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -15,16 +15,16 @@ export const applyLeave = async (req: Request, res: Response, next: NextFunction
     const departmentId = (req as any).user?.departmentId;
     const currentDate = new Date();
     const teamId = (req as any).user?.teamId;
-    const { 
-        leaveType, 
-        reason, 
-        noOfDays, 
-        leaveSession, 
-        leaveFrom, 
+    const {
+        leaveType,
+        reason,
+        noOfDays,
+        leaveSession,
+        leaveFrom,
         leaveTo,
-        halfDayType, 
-        fromTime,     
-        toTime       
+        halfDayType,
+        fromTime,
+        toTime
     } = req.body;
     console.log(currentDate, "date")
 
@@ -41,27 +41,27 @@ export const applyLeave = async (req: Request, res: Response, next: NextFunction
         return next(customErrorHandler(res, "Please specify time range for hourly leave.", 401));
     }
 
-    if (leaveFrom < currentDate){
+    if (leaveFrom < currentDate) {
         return next(customErrorHandler(res, "Insert valid date.", 401));
     }
 
-    if (leaveTo < currentDate){
+    if (leaveTo < currentDate) {
         return next(customErrorHandler(res, "Insert valid date.", 401));
     }
 
-    if (leaveFrom > leaveTo){
+    if (leaveFrom > leaveTo) {
         return next(customErrorHandler(res, "Insert valid leave taking date.", 401));
     }
 
     const checkExistingLeave = await prisma.leave.findFirst({
-        where:{
-            employeeId:employeeId,
-            leaveFrom:leaveFrom,
+        where: {
+            employeeId: employeeId,
+            leaveFrom: leaveFrom,
             companyId: companyId
         }
     })
 
-    if (checkExistingLeave){
+    if (checkExistingLeave) {
         return next(customErrorHandler(res, "Leave already taken on this time period.", 401))
     }
 
@@ -100,39 +100,39 @@ export const applyLeave = async (req: Request, res: Response, next: NextFunction
 };
 
 // display leave request of employee
-export const displayLeaveRequestOfEmployee = async( req: Request, res: Response, next: NextFunction)=>{
-    const companyId = (req as any ).user.companyId;
+export const displayLeaveRequestOfEmployee = async (req: Request, res: Response, next: NextFunction) => {
+    const companyId = (req as any).user.companyId;
     const { leaveId } = req.params;
 
     const leave = await prisma.leave.findFirst({
-        where:{
+        where: {
             leaveId,
             companyId
         },
-        include:{
-            employee:{
-                select:{
-                    employeeName:true,
-                    email:true,
-                    phoneNumber:true,
-                    employeeAddress:true,
-                    position:true,
+        include: {
+            employee: {
+                select: {
+                    employeeName: true,
+                    email: true,
+                    phoneNumber: true,
+                    employeeAddress: true,
+                    position: true,
                 }
             },
-            department:{
-                select:{
-                    departmentName:true
+            department: {
+                select: {
+                    departmentName: true
                 }
             },
-            team:{
-                select:{
-                    teamName:true
+            team: {
+                select: {
+                    teamName: true
                 }
             }
         }
     })
     if (!leave) {
-       return next(customErrorHandler(res,"Leave not found",404))
+        return next(customErrorHandler(res, "Leave not found", 404))
     }
 
     return res.json(leave)
@@ -140,29 +140,29 @@ export const displayLeaveRequestOfEmployee = async( req: Request, res: Response,
 }
 
 //Delete Applyed Leave befor being approve or reject
-export const deleteleave = async (req:any, res:any, next:any ) => {
+export const deleteleave = async (req: any, res: any, next: any) => {
 
     // const { employeeId} = req.body;
     const employeeId = (req as any).user.employeeId;
-    const {leaveId} = req.params;
+    const { leaveId } = req.params;
     const companyId = (req as any).user.companyId;
 
     const leave = await prisma.leave.findFirst({
-        where:{
+        where: {
             leaveId
         }
     })
-    if(leave?.leaveStatus == "PENDING" ){
+    if (leave?.leaveStatus == "PENDING") {
         const deleteLeave = await prisma.leave.delete({
-            where:{
+            where: {
                 employeeId, leaveId, companyId
             },
         });
         if (deleteLeave) {
-            return res.status(200).json({message: "Leave Deleted", deleteLeave});
+            return res.status(200).json({ message: "Leave Deleted", deleteLeave });
         }
     }
-    return next(customErrorHandler(res,"Can not Delete Leave 😔", 400))
+    return next(customErrorHandler(res, "Can not Delete Leave 😔", 400))
 
 }
 
@@ -173,30 +173,30 @@ enum LeaveStatus {
 }
 
 // Update Leave status of employees
-export const leaveStatusUpadate = async (req:any, res:any, next:any) => {
-    const {leaveId} = req.params;
-    const {leaveStatus, actionReason, employeeId} = req.body;
+export const leaveStatusUpadate = async (req: any, res: any, next: any) => {
+    const { leaveId } = req.params;
+    const { leaveStatus, actionReason, employeeId } = req.body;
     const companyId = (req as any).user.companyId;
-    
-    if(!leaveStatus ) {
+
+    if (!leaveStatus) {
         return next(customErrorHandler(res, "Please provide all the required details.", 401))
     }
 
-   
+
     let statusText = LeaveStatus.PENDING;
 
     if (leaveStatus === "APPROVE") {
         statusText = LeaveStatus.APPROVE
-        sendNotificationFromCompanyToEmployee(companyId,employeeId,"Your Leave has been approved")
+        sendNotificationFromCompanyToEmployee(companyId, employeeId, "Your Leave has been approved")
     }
-    else if (leaveStatus === "DECLINED"){
+    else if (leaveStatus === "DECLINED") {
         statusText = LeaveStatus.DECLINED
-        sendNotificationFromCompanyToEmployee(companyId,employeeId,"Your Leave has been declined")
+        sendNotificationFromCompanyToEmployee(companyId, employeeId, "Your Leave has been declined")
 
     }
-    else{
+    else {
         statusText = LeaveStatus.PENDING
-        sendNotificationFromCompanyToEmployee(companyId,employeeId,"Your Leave is on pending")
+        sendNotificationFromCompanyToEmployee(companyId, employeeId, "Your Leave is on pending")
 
     }
 
@@ -205,12 +205,12 @@ export const leaveStatusUpadate = async (req:any, res:any, next:any) => {
             employeeId, companyId, leaveId
         },
         data: {
-            leaveStatus : statusText,
-            actionReason : actionReason,
+            leaveStatus: statusText,
+            actionReason: actionReason,
         }
     })
 
-    return res.json({message:"Leave requested successfully.", leave:statusUpdate});
+    return res.json({ message: "Leave requested successfully.", leave: statusUpdate });
 }
 
 export const getallleave = async (req: any, res: any, next: any) => {
@@ -269,57 +269,57 @@ export const getallleave = async (req: any, res: any, next: any) => {
 };
 
 // display leave status of employee
-export const displayLeaveStatusOfEmployee = async (req:any, res:any, next:any) => {
-    const {companyId, employeeId} = (req as any).user;
+export const displayLeaveStatusOfEmployee = async (req: any, res: any, next: any) => {
+    const { companyId, employeeId } = (req as any).user;
 
     const leavestatus = await prisma.leave.findMany({
-        where:{
+        where: {
             companyId,
             employeeId
         },
-        orderBy:{
-            createdAt:"desc"
+        orderBy: {
+            createdAt: "desc"
         }
 
     })
-    return res.json({leavestatus})
+    return res.json({ leavestatus })
 }
 
-export const getEmployeAllLeave = async (req:any, res:any, next:any) => {
+export const getEmployeAllLeave = async (req: any, res: any, next: any) => {
     const companyId = (req as any).user.companyId;
     const employeeId = req.params.employeeId;
     const allLeave = await prisma.leave.findMany({
-        where:{
+        where: {
             companyId, employeeId
         },
         include: {
-            employee:{
-              select: {
-                employeeName: true,
-                position: {
-                    include: {
-                        role: {
-                            select:{
-                                roleName: true
-                            }
+            employee: {
+                select: {
+                    employeeName: true,
+                    position: {
+                        include: {
+                            role: {
+                                select: {
+                                    roleName: true
+                                }
+                            },
                         },
                     },
-                },
-              }
+                }
             },
-            department:{
+            department: {
                 select: {
                     departmentName: true
                 }
             },
             team: {
-                select:{
+                select: {
                     teamName: true
                 }
             }
         }
     });
-    return res.json({allLeave});
+    return res.json({ allLeave });
 }
 
 export const reconsiderLeave = async (req: Request, res: Response, next: NextFunction) => {
@@ -328,13 +328,13 @@ export const reconsiderLeave = async (req: Request, res: Response, next: NextFun
     const { reconsiderationReason } = req.body;
 
     const checkLeave = await prisma.leave.findFirst({
-        where:{
+        where: {
             companyId, leaveId
         }
     })
 
     if (!checkLeave) {
-        return res.status(404).json({message: "Leave not found"});
+        return res.status(404).json({ message: "Leave not found" });
     }
 
     const employeeId = checkLeave.employeeId;
@@ -343,18 +343,18 @@ export const reconsiderLeave = async (req: Request, res: Response, next: NextFun
     let statusText = LeaveStatus.PENDING;
 
     const applyAgain = await prisma.leave.update({
-        where:{
+        where: {
             leaveId, companyId, employeeId
         },
         data: {
-            leaveStatus : statusText,
-            reconsiderationReason : reconsiderationReason,
+            leaveStatus: statusText,
+            reconsiderationReason: reconsiderationReason,
         }
     })
 
     sendNotificationFromEmployeeToCompany(employeeId, companyId, reconsiderationReason, `/leave-request/${applyAgain.leaveId}`);
 
-    return res.json({applyAgain});
+    return res.json({ applyAgain });
 }
 
 export const sendLeavePDF = async (req: Request, res: Response, next: NextFunction): Promise<Response> => {
@@ -364,7 +364,7 @@ export const sendLeavePDF = async (req: Request, res: Response, next: NextFuncti
     const { employeeId } = req.params;
 
     // Fetching leave data based on the employeeId and companyId
-    const leaveData = employeeId 
+    const leaveData = employeeId
         ? await prisma.leave.findMany({
             where: { companyId, employeeId },
             take: 100,
@@ -389,7 +389,7 @@ export const sendLeavePDF = async (req: Request, res: Response, next: NextFuncti
                 }
             }
         });
-        
+
     if (!leaveData.length) {
         return res.status(404).send('No leave data found.');
     }

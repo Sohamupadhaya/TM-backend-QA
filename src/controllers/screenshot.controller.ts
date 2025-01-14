@@ -56,11 +56,9 @@ export const addScreenshot = async (
 
     await sharpInstance.toFile(compressedImagePath);
 
-
     try {
       await fsPromises.unlink(imagePath);
-    }
-    catch (error) {
+    } catch (error) {
       console.log("Something went wrong while deleting the original image");
       console.log(error);
     }
@@ -83,7 +81,6 @@ export const addScreenshot = async (
       message: "Screenshot uploaded and compressed successfully.",
       screenshot,
     });
-
   } catch (err) {
     console.error("Error compressing image:", err);
 
@@ -98,11 +95,6 @@ export const addScreenshot = async (
     return customErrorHandler(res, "Error processing image", 500);
   }
 };
-
-
-
-
-
 
 // Get all screenshot of own
 export const getAllScreenshotOfOwn = async (
